@@ -25,6 +25,7 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/groups', require('./routes/groupRoutes'));
 app.use('/api/questionnaires', require('./routes/questionnaireRoutes'));
+app.use('/api/vsla-individual-baselines', require('./routes/vslaIndividualBaselineRoutes'));
 
 app.use(notFound);
 app.use(errorHandler);
