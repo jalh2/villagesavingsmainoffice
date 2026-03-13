@@ -27,8 +27,9 @@ const memberSchema = new mongoose.Schema(
     },
     signature: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
+      default: '',
     },
   },
   { _id: true }

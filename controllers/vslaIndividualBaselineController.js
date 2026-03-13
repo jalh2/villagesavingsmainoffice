@@ -4,6 +4,21 @@ const Group = require('../models/Group');
 
 const asTrimmed = (value) => String(value || '').trim();
 
+const canAccessAllRecords = (req) => ['admin', 'manager'].includes(String(req.user?.role || '').trim().toLowerCase());
+
+const ensureBaselineAccess = (req, record) => {
+  if (!record) return;
+  if (canAccessAllRecords(req)) return;
+
+  const createdByEmail = String(record.createdByEmail || '').trim().toLowerCase();
+  const requesterEmail = String(req.user?.email || '').trim().toLowerCase();
+
+  if (!createdByEmail || createdByEmail !== requesterEmail) {
+    req.res.status(404);
+    throw new Error('VSLA individual baseline record not found');
+  }
+};
+
 const normalizeBorrowed = (value) => {
   const normalized = asTrimmed(value).toLowerCase();
   if (normalized === 'yes') return 'yes';
@@ -95,7 +110,7 @@ const buildPayload = (body) => {
 };
 
 const getAllVslaIndividualBaselines = asyncHandler(async (req, res) => {
-  const filter = {};
+  const filter = canAccessAllRecords(req) ? {} : { createdByEmail: req.user?.email };
   if (req.query.groupId) {
     filter.group = req.query.groupId;
   }
@@ -114,6 +129,7 @@ const getVslaIndividualBaselineById = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('VSLA individual baseline record not found');
   }
+  ensureBaselineAccess(req, record);
   res.json(record);
 });
 
@@ -164,6 +180,8 @@ const updateVslaIndividualBaseline = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('VSLA individual baseline record not found');
   }
+
+  ensureBaselineAccess(req, record);
 
   let group = null;
   if (req.body.group !== undefined) {
@@ -217,6 +235,8 @@ const deleteVslaIndividualBaseline = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('VSLA individual baseline record not found');
   }
+
+  ensureBaselineAccess(req, record);
 
   await VslaIndividualBaseline.findByIdAndDelete(req.params.id);
   res.json({ message: 'VSLA individual baseline record deleted successfully' });

@@ -17,8 +17,8 @@ const validateMembers = (members) => {
 
   for (let index = 0; index < members.length; index += 1) {
     const member = normalizeMember(members[index]);
-    if (!member.name || !member.position || !member.contact || !member.gender || !member.signature) {
-      return `Member ${index + 1}: name, position, contact, gender and signature are required`;
+    if (!member.name || !member.position || !member.contact || !member.gender) {
+      return `Member ${index + 1}: name, position, contact and gender are required`;
     }
     if (!MEMBER_POSITIONS.includes(member.position)) {
       return `Member ${index + 1}: invalid position`;
@@ -31,8 +31,24 @@ const validateMembers = (members) => {
   return null;
 };
 
+const canAccessAllRecords = (req) => ['admin', 'manager'].includes(String(req.user?.role || '').trim().toLowerCase());
+
+const ensureGroupAccess = (req, group) => {
+  if (!group) return;
+  if (canAccessAllRecords(req)) return;
+
+  const groupCreatedBy = String(group.createdByEmail || '').trim().toLowerCase();
+  const requesterEmail = String(req.user?.email || '').trim().toLowerCase();
+
+  if (!groupCreatedBy || groupCreatedBy !== requesterEmail) {
+    req.res.status(404);
+    throw new Error('Group not found');
+  }
+};
+
 const getAllGroups = asyncHandler(async (req, res) => {
-  const groups = await Group.find().sort({ createdAt: -1 });
+  const filter = canAccessAllRecords(req) ? {} : { createdByEmail: req.user?.email };
+  const groups = await Group.find(filter).sort({ createdAt: -1 });
   res.json(groups);
 });
 
@@ -42,6 +58,7 @@ const getGroupById = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Group not found');
   }
+  ensureGroupAccess(req, group);
   res.json(group);
 });
 
@@ -108,6 +125,7 @@ const updateGroup = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Group not found');
   }
+  ensureGroupAccess(req, group);
 
   const fields = [
     'groupName',
@@ -149,6 +167,8 @@ const getGroupMembers = asyncHandler(async (req, res) => {
     throw new Error('Group not found');
   }
 
+  ensureGroupAccess(req, group);
+
   res.json({
     groupId: group._id,
     groupName: group.groupName,
@@ -163,6 +183,8 @@ const addGroupMember = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Group not found');
   }
+
+  ensureGroupAccess(req, group);
 
   const memberError = validateMembers([req.body]);
   if (memberError) {
@@ -184,6 +206,7 @@ const deleteGroup = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Group not found');
   }
+  ensureGroupAccess(req, group);
   await Group.findByIdAndDelete(req.params.id);
   res.json({ message: 'Group deleted successfully' });
 });

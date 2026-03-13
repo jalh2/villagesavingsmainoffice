@@ -2,8 +2,23 @@ const asyncHandler = require('express-async-handler');
 const Questionnaire = require('../models/Questionnaire');
 const Group = require('../models/Group');
 
+const canAccessAllRecords = (req) => ['admin', 'manager'].includes(String(req.user?.role || '').trim().toLowerCase());
+
+const ensureQuestionnaireAccess = (req, questionnaire) => {
+  if (!questionnaire) return;
+  if (canAccessAllRecords(req)) return;
+
+  const createdByEmail = String(questionnaire.createdByEmail || '').trim().toLowerCase();
+  const requesterEmail = String(req.user?.email || '').trim().toLowerCase();
+
+  if (!createdByEmail || createdByEmail !== requesterEmail) {
+    req.res.status(404);
+    throw new Error('Questionnaire not found');
+  }
+};
+
 const getAllQuestionnaires = asyncHandler(async (req, res) => {
-  const filter = {};
+  const filter = canAccessAllRecords(req) ? {} : { createdByEmail: req.user?.email };
   if (req.query.groupId) {
     filter.group = req.query.groupId;
   }
@@ -19,6 +34,7 @@ const getQuestionnaireById = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Questionnaire not found');
   }
+  ensureQuestionnaireAccess(req, questionnaire);
   res.json(questionnaire);
 });
 
@@ -51,6 +67,8 @@ const updateQuestionnaire = asyncHandler(async (req, res) => {
     throw new Error('Questionnaire not found');
   }
 
+  ensureQuestionnaireAccess(req, questionnaire);
+
   if (req.body.group) {
     const groupRecord = await Group.findById(req.body.group);
     if (!groupRecord) {
@@ -73,6 +91,8 @@ const deleteQuestionnaire = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Questionnaire not found');
   }
+
+  ensureQuestionnaireAccess(req, questionnaire);
 
   await Questionnaire.findByIdAndDelete(req.params.id);
   res.json({ message: 'Questionnaire deleted successfully' });
