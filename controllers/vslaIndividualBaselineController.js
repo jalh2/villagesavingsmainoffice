@@ -4,7 +4,20 @@ const Group = require('../models/Group');
 
 const asTrimmed = (value) => String(value || '').trim();
 
-const canAccessAllRecords = (req) => ['admin', 'manager'].includes(String(req.user?.role || '').trim().toLowerCase());
+const canAccessAllRecords = (req) => String(req.user?.role || '').trim().toLowerCase() === 'admin';
+
+const ensureGroupAccess = (req, group) => {
+  if (!group) return;
+  if (canAccessAllRecords(req)) return;
+
+  const createdByEmail = String(group.createdByEmail || '').trim().toLowerCase();
+  const requesterEmail = String(req.user?.email || '').trim().toLowerCase();
+
+  if (!createdByEmail || createdByEmail !== requesterEmail) {
+    req.res.status(404);
+    throw new Error('Group not found');
+  }
+};
 
 const ensureBaselineAccess = (req, record) => {
   if (!record) return;
@@ -140,11 +153,13 @@ const createVslaIndividualBaseline = asyncHandler(async (req, res) => {
     throw new Error('group is required');
   }
 
-  const group = await Group.findById(groupId).select('groupName groupLocation members');
+  const group = await Group.findById(groupId).select('groupName groupLocation members createdByEmail');
   if (!group) {
     res.status(404);
     throw new Error('Group not found');
   }
+
+  ensureGroupAccess(req, group);
 
   const payload = buildPayload(req.body || {});
   payload.group = group._id;
@@ -190,11 +205,12 @@ const updateVslaIndividualBaseline = asyncHandler(async (req, res) => {
       res.status(400);
       throw new Error('group cannot be empty');
     }
-    group = await Group.findById(groupId).select('groupName groupLocation members');
+    group = await Group.findById(groupId).select('groupName groupLocation members createdByEmail');
     if (!group) {
       res.status(404);
       throw new Error('Group not found');
     }
+    ensureGroupAccess(req, group);
     record.group = group._id;
   }
 
@@ -205,8 +221,9 @@ const updateVslaIndividualBaseline = asyncHandler(async (req, res) => {
     if (memberId) {
       payload.memberId = memberId;
       if (!group) {
-        group = await Group.findById(record.group).select('groupName groupLocation members');
+        group = await Group.findById(record.group).select('groupName groupLocation members createdByEmail');
       }
+      ensureGroupAccess(req, group);
       applyMemberDefaults(payload, getMemberById(group, memberId));
     }
   }
@@ -216,7 +233,8 @@ const updateVslaIndividualBaseline = asyncHandler(async (req, res) => {
   });
 
   if (!asTrimmed(record.vslaName)) {
-    if (!group) group = await Group.findById(record.group).select('groupName');
+    if (!group) group = await Group.findById(record.group).select('groupName createdByEmail');
+    ensureGroupAccess(req, group);
     record.vslaName = asTrimmed(group?.groupName);
   }
 

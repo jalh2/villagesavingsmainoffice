@@ -2,7 +2,20 @@ const asyncHandler = require('express-async-handler');
 const Questionnaire = require('../models/Questionnaire');
 const Group = require('../models/Group');
 
-const canAccessAllRecords = (req) => ['admin', 'manager'].includes(String(req.user?.role || '').trim().toLowerCase());
+const canAccessAllRecords = (req) => String(req.user?.role || '').trim().toLowerCase() === 'admin';
+
+const ensureGroupAccess = (req, group) => {
+  if (!group) return;
+  if (canAccessAllRecords(req)) return;
+
+  const createdByEmail = String(group.createdByEmail || '').trim().toLowerCase();
+  const requesterEmail = String(req.user?.email || '').trim().toLowerCase();
+
+  if (!createdByEmail || createdByEmail !== requesterEmail) {
+    req.res.status(404);
+    throw new Error('Group not found');
+  }
+};
 
 const ensureQuestionnaireAccess = (req, questionnaire) => {
   if (!questionnaire) return;
@@ -51,6 +64,8 @@ const createQuestionnaire = asyncHandler(async (req, res) => {
     throw new Error('Group not found');
   }
 
+  ensureGroupAccess(req, groupRecord);
+
   const questionnaire = await Questionnaire.create({
     ...req.body,
     createdBy: req.user?.id,
@@ -75,6 +90,8 @@ const updateQuestionnaire = asyncHandler(async (req, res) => {
       res.status(404);
       throw new Error('Group not found');
     }
+
+    ensureGroupAccess(req, groupRecord);
   }
 
   Object.keys(req.body || {}).forEach((field) => {

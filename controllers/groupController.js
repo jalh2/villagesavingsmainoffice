@@ -31,7 +31,7 @@ const validateMembers = (members) => {
   return null;
 };
 
-const canAccessAllRecords = (req) => ['admin', 'manager'].includes(String(req.user?.role || '').trim().toLowerCase());
+const canAccessAllRecords = (req) => String(req.user?.role || '').trim().toLowerCase() === 'admin';
 
 const ensureGroupAccess = (req, group) => {
   if (!group) return;
@@ -177,7 +177,7 @@ const updateGroup = asyncHandler(async (req, res) => {
 });
 
 const getGroupMembers = asyncHandler(async (req, res) => {
-  const group = await Group.findById(req.params.id).select('groupName members numberOfMembers');
+  const group = await Group.findById(req.params.id).select('groupName members numberOfMembers createdByEmail');
   if (!group) {
     res.status(404);
     throw new Error('Group not found');
