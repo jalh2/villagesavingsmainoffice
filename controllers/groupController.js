@@ -65,11 +65,15 @@ const getGroupById = asyncHandler(async (req, res) => {
 const createGroup = asyncHandler(async (req, res) => {
   const {
     groupName,
+    chairpersonName,
     chairpersonPhone,
+    recordKeeperName,
     recordKeeperPhone,
     registrationAmount,
     registrationDate,
     trainingDate,
+    meetingDate,
+    meetingTime,
     groupLocation,
     numberOfMembers,
     members,
@@ -87,11 +91,15 @@ const createGroup = asyncHandler(async (req, res) => {
 
   if (
     !groupName ||
+    !chairpersonName ||
     !chairpersonPhone ||
+    !recordKeeperName ||
     !recordKeeperPhone ||
     registrationAmount === undefined ||
     !registrationDate ||
     !trainingDate ||
+    !meetingDate ||
+    !meetingTime ||
     !groupLocation ||
     (numberOfMembers === undefined && normalizedMembers.length === 0)
   ) {
@@ -104,11 +112,15 @@ const createGroup = asyncHandler(async (req, res) => {
 
   const group = await Group.create({
     groupName,
+    chairpersonName,
     chairpersonPhone,
+    recordKeeperName,
     recordKeeperPhone,
     registrationAmount,
     registrationDate,
     trainingDate,
+    meetingDate,
+    meetingTime,
     groupLocation,
     numberOfMembers: finalMemberCount,
     members: normalizedMembers,
@@ -129,11 +141,15 @@ const updateGroup = asyncHandler(async (req, res) => {
 
   const fields = [
     'groupName',
+    'chairpersonName',
     'chairpersonPhone',
+    'recordKeeperName',
     'recordKeeperPhone',
     'registrationAmount',
     'registrationDate',
     'trainingDate',
+    'meetingDate',
+    'meetingTime',
     'groupLocation',
     'status',
   ];

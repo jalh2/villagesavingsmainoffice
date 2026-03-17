@@ -42,7 +42,17 @@ const groupSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    chairpersonName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     chairpersonPhone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    recordKeeperName: {
       type: String,
       required: true,
       trim: true,
@@ -63,6 +73,15 @@ const groupSchema = new mongoose.Schema(
     trainingDate: {
       type: Date,
       required: true,
+    },
+    meetingDate: {
+      type: Date,
+      required: true,
+    },
+    meetingTime: {
+      type: String,
+      required: true,
+      trim: true,
     },
     groupLocation: {
       type: String,
