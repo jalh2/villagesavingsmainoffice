@@ -110,6 +110,16 @@ const createGroup = asyncHandler(async (req, res) => {
   const finalMemberCount =
     normalizedMembers.length > 0 ? normalizedMembers.length : Number(numberOfMembers);
 
+  const existing = await Group.findOne({
+    groupName: String(groupName || '').trim(),
+    groupLocation: String(groupLocation || '').trim(),
+    chairpersonPhone: String(chairpersonPhone || '').trim(),
+    createdByEmail: req.user?.email,
+  });
+  if (existing) {
+    return res.status(200).json(existing);
+  }
+
   const group = await Group.create({
     groupName,
     chairpersonName,
