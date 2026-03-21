@@ -88,6 +88,20 @@ const groupSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    district: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    county: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    visited: {
+      type: Boolean,
+      default: false,
+    },
     numberOfMembers: {
       type: Number,
       required: true,

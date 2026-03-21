@@ -4,6 +4,7 @@ const {
   getGroupById,
   createGroup,
   updateGroup,
+  getGroupStats,
   getGroupMembers,
   addGroupMember,
   deleteGroup,
@@ -15,6 +16,7 @@ const router = express.Router();
 router.use(identifyUserFromHeader);
 
 router.get('/', authorizeRoles('admin', 'manager', 'staff', 'assets', 'field agent'), getAllGroups);
+router.get('/stats', authorizeRoles('admin', 'manager', 'staff', 'assets', 'field agent'), getGroupStats);
 router.get('/:id', authorizeRoles('admin', 'manager', 'staff', 'assets', 'field agent'), getGroupById);
 router.get('/:id/members', authorizeRoles('admin', 'manager', 'staff', 'assets', 'field agent'), getGroupMembers);
 router.post('/:id/members', authorizeRoles('admin', 'manager', 'staff', 'field agent'), addGroupMember);

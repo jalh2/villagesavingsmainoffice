@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const Group = require('../models/Group');
+const Questionnaire = require('../models/Questionnaire');
 const { MEMBER_GENDERS, MEMBER_POSITIONS } = require('../config/groupMembers');
 
 const normalizeMember = (member = {}) => ({
@@ -75,6 +76,8 @@ const createGroup = asyncHandler(async (req, res) => {
     meetingDate,
     meetingTime,
     groupLocation,
+    district,
+    county,
     numberOfMembers,
     members,
   } = req.body;
@@ -132,6 +135,8 @@ const createGroup = asyncHandler(async (req, res) => {
     meetingDate,
     meetingTime,
     groupLocation,
+    district: district || '',
+    county: county || '',
     numberOfMembers: finalMemberCount,
     members: normalizedMembers,
     createdBy: req.user?.id,
@@ -161,7 +166,10 @@ const updateGroup = asyncHandler(async (req, res) => {
     'meetingDate',
     'meetingTime',
     'groupLocation',
+    'district',
+    'county',
     'status',
+    'visited',
   ];
 
   if (req.body.members !== undefined) {
@@ -226,6 +234,80 @@ const addGroupMember = asyncHandler(async (req, res) => {
   res.status(201).json(group);
 });
 
+const getGroupStats = asyncHandler(async (req, res) => {
+  const filter = canAccessAllRecords(req) ? {} : { createdByEmail: req.user?.email };
+  const qFilter = canAccessAllRecords(req) ? {} : { createdByEmail: req.user?.email };
+
+  const [groups, questionnaires] = await Promise.all([
+    Group.find(filter).select(
+      'status members visited groupLocation district county trainingDate createdAt'
+    ),
+    Questionnaire.find(qFilter).select('group status'),
+  ]);
+
+  const now = new Date();
+
+  let totalMembers = 0;
+  let chairpersons = 0;
+  let recordKeepers = 0;
+  const communities = new Set();
+  const districts = new Set();
+  const counties = new Set();
+
+  let visitedGroups = 0;
+  let approvedGroups = 0;
+  let rejectedGroups = 0;
+  let pendingGroups = 0;
+  let groupsPlanningForTraining = 0;
+
+  groups.forEach((g) => {
+    const status = String(g.status || '').toLowerCase();
+    if (g.visited) visitedGroups += 1;
+    if (status === 'approved') approvedGroups += 1;
+    if (status === 'rejected') rejectedGroups += 1;
+    if (status === 'pending') pendingGroups += 1;
+    if (g.trainingDate && new Date(g.trainingDate) > now) groupsPlanningForTraining += 1;
+
+    if (g.groupLocation) communities.add(String(g.groupLocation).trim().toLowerCase());
+    if (g.district) districts.add(String(g.district).trim().toLowerCase());
+    if (g.county) counties.add(String(g.county).trim().toLowerCase());
+
+    const members = Array.isArray(g.members) ? g.members : [];
+    totalMembers += members.length;
+    members.forEach((m) => {
+      const pos = String(m.position || '').trim().toLowerCase();
+      if (pos === 'chairperson') chairpersons += 1;
+      if (pos === 'record keeper') recordKeepers += 1;
+    });
+  });
+
+  const groupIdsWithQuestionnaire = new Set(
+    questionnaires.map((q) => String(q.group))
+  );
+  const groupsPlanningForQuestions = groups.filter(
+    (g) => String(g.status || '').toLowerCase() === 'approved' &&
+      !groupIdsWithQuestionnaire.has(String(g._id))
+  ).length;
+
+  res.json({
+    totalGroups: groups.length,
+    visitedGroups,
+    groupsRegistered: groups.length,
+    groupsQuestionnaires: questionnaires.length,
+    groupsPlanningForQuestions,
+    approvedGroups,
+    rejectedGroups,
+    pendingGroups,
+    numberOfGroupMembers: totalMembers,
+    numberOfChairpersons: chairpersons,
+    numberOfRecordKeepers: recordKeepers,
+    numberOfCommunities: communities.size,
+    numberOfDistricts: districts.size,
+    numberOfCounties: counties.size,
+    groupsPlanningForTraining,
+  });
+});
+
 const deleteGroup = asyncHandler(async (req, res) => {
   const group = await Group.findById(req.params.id);
   if (!group) {
@@ -242,6 +324,7 @@ module.exports = {
   getGroupById,
   createGroup,
   updateGroup,
+  getGroupStats,
   getGroupMembers,
   addGroupMember,
   deleteGroup,
